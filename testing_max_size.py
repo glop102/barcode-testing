@@ -5,6 +5,7 @@ def generate_barcode(datalength:int):
     img = treepoem.generate_barcode(
         "qrcode",
         # "datamatrix",
+        # randrange is the capital letters
         bytes([randrange(65,90) for _ in range(datalength)]),
         scale=8,
         options={"eclevel":"H"}
