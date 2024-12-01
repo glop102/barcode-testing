@@ -125,19 +125,27 @@ class ZXingCppDisplay(QWidget):
         self._barcode_orientation.setText(str(results[0].orientation))
         position = results[0].position
         
-        bounding_box = (
-            min(position.top_left.x,position.top_right.x,position.bottom_left.x,position.bottom_right.x),
-            min(position.top_left.y,position.top_right.y,position.bottom_left.y,position.bottom_right.y),
-            max(position.top_left.x,position.top_right.x,position.bottom_left.x,position.bottom_right.x),
-            max(position.top_left.y,position.top_right.y,position.bottom_left.y,position.bottom_right.y),
-        )
-        # subimg = originalImg.crop(bounding_box)
-        # subimg = subimg.rotate(results[0].orientation)
-
-        longest_side = max(
-            bounding_box[2]-bounding_box[0],
-            bounding_box[1]-bounding_box[3],
-        )
+        # bounding_box = (
+        #     min(position.top_left.x,position.top_right.x,position.bottom_left.x,position.bottom_right.x),
+        #     min(position.top_left.y,position.top_right.y,position.bottom_left.y,position.bottom_right.y),
+        #     max(position.top_left.x,position.top_right.x,position.bottom_left.x,position.bottom_right.x),
+        #     max(position.top_left.y,position.top_right.y,position.bottom_left.y,position.bottom_right.y),
+        # )
+        # longest_side = max(
+        #     bounding_box[2]-bounding_box[0],
+        #     bounding_box[1]-bounding_box[3],
+        # )
+        def dist_between_points(p1,p2):
+            dx = p1.x-p2.x
+            dy = p1.y-p2.y
+            return math.sqrt((dx*dx)+(dy*dy))
+        longest_side = max([
+            dist_between_points(position.top_left,position.top_right),
+            dist_between_points(position.top_right,position.bottom_right),
+            dist_between_points(position.bottom_right,position.bottom_left),
+            dist_between_points(position.bottom_left,position.top_left),
+        ])
+        longest_side = int(longest_side)
 
         subimg = originalImg.transform(
             size = (longest_side,longest_side),
