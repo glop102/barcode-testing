@@ -13,3 +13,4 @@ pillow
 pyside6 (for the GUI)
 treepoem (for generating parcodes)
 zxingcpp (for parsing barcodes)
+pyzbar (for parsing barcodes in the webcam.py)
