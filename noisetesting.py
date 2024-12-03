@@ -23,6 +23,7 @@ def create_base_matrices(encodings:list[tuple[str,str]])->list[Image]:
     """
     List of (data to encode,barcodetype)
     """
+    print("Generating barcodes")
     imgs = []
     for data,codetype in encodings:
         try:
@@ -39,12 +40,6 @@ def scan_for_barcodes(img:Image) -> zxingcpp.Result:
     return zxingcpp.read_barcodes(img)
 
 def add_gausian_noise(img:Image,range=30.0)->Image:
-    # # https://stackoverflow.com/questions/70780758/how-to-generate-random-normal-distribution-without-numpy-google-interview
-    # # second answer is the right one
-    # def getrand():
-    #     u1 = 1-(random()**tightness)
-    #     u2 = 1-(random()**tightness)
-    #     return range * math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2)
     def getrand()->float:
         #Box/Muller polar transform
         s = 1.0
@@ -59,13 +54,11 @@ def add_gausian_noise(img:Image,range=30.0)->Image:
     def getscaledrand()->float:
         r = getrand()
         return r * range
-    pixels = [
-        min(255,max(0, int(v+getscaledrand())))
-        for pixel in img.getdata()
-        for v in pixel
-    ]
-    pixels = bytes(pixels)
-    return frombytes(img.mode,img.size,pixels)
+    imgbytes = img.tobytes()
+    values = [
+        max(0,min(255,  v+int(getscaledrand())  ))
+        for v in imgbytes]
+    return frombytes(img.mode,img.size,bytes(values))
 
 def noise_rotate_test_image(image:Image,rot_deg:float) -> tuple[Image,int]:
     # i_over = i_over.rotate(90)
@@ -145,7 +138,7 @@ def pillow_to_pixmap(img:Image) -> QPixmap:
                 imgdata,
                 img.width,
                 img.height,
-                img.width*3,
+                img.width*4,
                 QImage.Format.Format_RGBA8888
             )
         case "L":
@@ -153,7 +146,7 @@ def pillow_to_pixmap(img:Image) -> QPixmap:
                 imgdata,
                 img.width,
                 img.height,
-                img.width*3,
+                img.width,
                 QImage.Format.Format_Grayscale8
             )
         case  _:
@@ -173,10 +166,7 @@ window = QMainWindow()
 c = QWidget()
 l = QVBoxLayout()
 c.setLayout(l)
-scrollarea = QScrollArea()
-scrollarea.setWidget(c)
-scrollarea.setWidgetResizable(True)
-window.setCentralWidget(scrollarea)
+window.setCentralWidget(c)
 window.show()
 
 imgs = create_base_matrices(
@@ -200,7 +190,7 @@ def update_displayed_image(img:Image):
     app.processEvents()
 for i in imgs:
     found,percentage = test_image_full_circle(i,update_displayed_image)
-    print(found,"  ",percentage*100,"%")
+    print("Successfully parsed ",found," out of 360   ",percentage*100,"%")
 
 imgs_datamatrix = imgs_noised[:360]
 imgs_qrcode = imgs_noised[360:]
