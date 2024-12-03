@@ -30,7 +30,7 @@ class PillowDisplay(QLabel):
                     imgdata,
                     img.width,
                     img.height,
-                    img.width*3,
+                    img.width*4,
                     QImage.Format.Format_RGBA8888
                 )
             case "L":
@@ -38,7 +38,7 @@ class PillowDisplay(QLabel):
                     imgdata,
                     img.width,
                     img.height,
-                    img.width*3,
+                    img.width,
                     QImage.Format.Format_Grayscale8
                 )
             case  _:
