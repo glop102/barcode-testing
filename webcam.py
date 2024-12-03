@@ -4,7 +4,6 @@ from PIL.Image import Image, Transform
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
-from pyzbar import pyzbar
 import av
 import math
 import time
@@ -16,19 +15,42 @@ class PillowDisplay(QLabel):
         pixmap = self.__pillow_to_pixmap(img)
         self.setPixmap(pixmap)
     def __pillow_to_pixmap(self,img:Image) -> QPixmap:
-        img = img.convert("RGB")
-        imgdata = bytearray([
-            channel
-            for pixel in img.getdata()
-            for channel in pixel
-        ])
-        qimage = QImage(
-            imgdata,
-            img.width,
-            img.height,
-            img.width*3,
-            QImage.Format.Format_RGB888
-        )
+        imgdata = img.tobytes()
+        match img.mode:
+            case "RGB":
+                qimage = QImage(
+                    imgdata,
+                    img.width,
+                    img.height,
+                    img.width*3,
+                    QImage.Format.Format_RGB888
+                )
+            case "RGBA":
+                qimage = QImage(
+                    imgdata,
+                    img.width,
+                    img.height,
+                    img.width*3,
+                    QImage.Format.Format_RGBA8888
+                )
+            case "L":
+                qimage = QImage(
+                    imgdata,
+                    img.width,
+                    img.height,
+                    img.width*3,
+                    QImage.Format.Format_Grayscale8
+                )
+            case  _:
+                print("Unknown image format {}, converting to RGB as a fallback".format(img.mode))
+                img = img.convert("RGB")
+                qimage = QImage(
+                    imgdata,
+                    img.width,
+                    img.height,
+                    img.width*3,
+                    QImage.Format.Format_RGB888
+                )
         return QPixmap(qimage)
 
 class BarcodeParser(QObject):
@@ -65,7 +87,10 @@ class BarcodeParser(QObject):
             self._imageAvailToParse.clear()
 
             start = time.perf_counter()
-            barcode_results:list[Any] = self.parserForBarcodes(img)
+            try:
+                barcode_results:list[Any] = self.parserForBarcodes(img)
+            except:
+                barcode_results = []
             end = time.perf_counter()
 
             self.foundBarcodeResults.emit(img,barcode_results,end-start)
@@ -120,17 +145,7 @@ class ZXingCppDisplay(QWidget):
         self._barcode_position.setText(str(results[0].position))
         self._barcode_orientation.setText(str(results[0].orientation))
         position = results[0].position
-        
-        # bounding_box = (
-        #     min(position.top_left.x,position.top_right.x,position.bottom_left.x,position.bottom_right.x),
-        #     min(position.top_left.y,position.top_right.y,position.bottom_left.y,position.bottom_right.y),
-        #     max(position.top_left.x,position.top_right.x,position.bottom_left.x,position.bottom_right.x),
-        #     max(position.top_left.y,position.top_right.y,position.bottom_left.y,position.bottom_right.y),
-        # )
-        # longest_side = max(
-        #     bounding_box[2]-bounding_box[0],
-        #     bounding_box[1]-bounding_box[3],
-        # )
+
         def dist_between_points(p1:zxingcpp.Point,p2:zxingcpp.Point):
             dx = p1.x-p2.x
             dy = p1.y-p2.y
@@ -151,83 +166,6 @@ class ZXingCppDisplay(QWidget):
                 position.top_right.x,position.top_right.y,
                 position.bottom_right.x,position.bottom_right.y,
                 position.bottom_left.x,position.bottom_left.y,
-            ]
-        )
-        self._barcode_image.setPillow(subimg)
-
-class PyZbarParser(BarcodeParser):
-    def __init__(self):
-        super().__init__(pyzbar.decode)
-class PyZbarDisplay(QWidget):
-    _parser:PyZbarParser
-    _barcode_type:QLabel
-    _barcode_duration:QLabel
-    _barcode_text:QLabel
-    _barcode_position:QLabel
-    _barcode_orientation:QLabel
-    _barcode_image:PillowDisplay
-
-    def __init__(self):
-        super().__init__()
-        self._barcode_type = QLabel()
-        self._barcode_duration = QLabel()
-        self._barcode_text = QLabel()
-        self._barcode_position = QLabel()
-        self._barcode_orientation = QLabel()
-        self._barcode_image = PillowDisplay()
-        l = QVBoxLayout()
-        self.setLayout(l)
-        l.addWidget(self._barcode_type)
-        l.addWidget(self._barcode_duration)
-        l.addWidget(self._barcode_text)
-        l.addWidget(self._barcode_position)
-        l.addWidget(self._barcode_orientation)
-        l.addWidget(self._barcode_image)
-
-        self._parser = PyZbarParser()
-        self._parser.foundBarcodeResults.connect(self.displayResults)
-    def scanForBarcodes(self,img:Image):
-        self._parser.askForImageParsing(img)
-    def displayResults(self,originalImg:Image,results:list[pyzbar.Decoded],delta_s:float):
-        self._barcode_duration.setText(f"{delta_s*1000:.2f} ms")
-        if len(results) == 0:
-            return
-        self._barcode_type.setText(str(results[0].type))
-        self._barcode_text.setText(str(results[0].data))
-        self._barcode_position.setText(str(results[0].polygon))
-        self._barcode_orientation.setText(str(results[0].orientation))
-        polygon = results[0].polygon
-        
-        # bounding_box = (
-        #     min(position.top_left.x,position.top_right.x,position.bottom_left.x,position.bottom_right.x),
-        #     min(position.top_left.y,position.top_right.y,position.bottom_left.y,position.bottom_right.y),
-        #     max(position.top_left.x,position.top_right.x,position.bottom_left.x,position.bottom_right.x),
-        #     max(position.top_left.y,position.top_right.y,position.bottom_left.y,position.bottom_right.y),
-        # )
-        # longest_side = max(
-        #     bounding_box[2]-bounding_box[0],
-        #     bounding_box[1]-bounding_box[3],
-        # )
-        def dist_between_points(p1:pyzbar.Point,p2:pyzbar.Point) -> float:
-            dx = p1.x-p2.x
-            dy = p1.y-p2.y
-            return math.sqrt((dx*dx)+(dy*dy))
-        longest_side = max([
-            dist_between_points(polygon[0],polygon[1]),
-            dist_between_points(polygon[1],polygon[2]),
-            dist_between_points(polygon[2],polygon[3]),
-            dist_between_points(polygon[3],polygon[0]),
-        ])
-        longest_side = int(longest_side)
-
-        subimg = originalImg.transform(
-            size = (longest_side,longest_side),
-            method = Transform.QUAD,
-            data = [
-                polygon[0].x,polygon[0].y,
-                polygon[1].x,polygon[1].y,
-                polygon[2].x,polygon[2].y,
-                polygon[3].x,polygon[3].y,
             ]
         )
         self._barcode_image.setPillow(subimg)
@@ -266,10 +204,6 @@ webcam = WebcamDisplay()
 center_layout.addWidget(webcam)
 # My little laptop runs this on my webcam in about 8-10 ms
 parser = ZXingCppDisplay()
-# And my same little laptop, this is about 20 ms
-# Also pyzbar does not give a polygon in the same orientation to be facing up everytime
-# so extra things need to be figured out for what points are what for the polygon for each orientation
-# parser = PyZbarDisplay()
 webcam.newFrame.connect(parser.scanForBarcodes)
 center_layout.addWidget(parser)
 
