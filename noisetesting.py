@@ -71,19 +71,11 @@ def add_gausian_noise_builtin(img:Image,range=30.0)->Image:
     return frombytes(img.mode,img.size,bytes(values))
 
 def add_gausian_noise_numpy(img:Image,range=30.0)->Image:
-    imgbytes = np.frombuffer(img.tobytes(),dtype=np.uint8)
+    imgbytes = np.array(img)
     noise_texture = nprand.normal(loc=0,scale=range,size=imgbytes.shape)
     noised = imgbytes + noise_texture
     noised = np.clip(noised,min=0,max=255)
     noised = np.astype(noised,np.uint8)
-    noised = np.reshape(
-        noised,
-        shape=(
-            img.width,
-            img.height,
-            len(imgbytes)//(img.width*img.height) # bitdepth
-        )
-    )
     return fromarray(noised)
 
 def noise_rotate_test_image(image:Image,rot_deg:float) -> tuple[Image,int]:
