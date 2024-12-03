@@ -1,17 +1,20 @@
 from functools import partial
 from threading import Thread
 from typing import Callable
-from PIL.Image import Image, frombytes
+from PIL.Image import Image, frombytes, fromarray
 from PIL.Image import new as ImageNew
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
-from random import random,uniform
+from random import random,uniform,gauss
 import math
 import time
 import traceback
 import treepoem
 import zxingcpp
+import numpy as np
+
+nprand = np.random.default_rng()
 
 wanted_codetypes = [
     "datamatrix",
@@ -60,6 +63,29 @@ def add_gausian_noise(img:Image,range=30.0)->Image:
         for v in imgbytes]
     return frombytes(img.mode,img.size,bytes(values))
 
+def add_gausian_noise_builtin(img:Image,range=30.0)->Image:
+    imgbytes = img.tobytes()
+    values = [
+        max(0,min(255,  v+int(gauss(sigma=range))  ))
+        for v in imgbytes]
+    return frombytes(img.mode,img.size,bytes(values))
+
+def add_gausian_noise_numpy(img:Image,range=30.0)->Image:
+    imgbytes = np.frombuffer(img.tobytes(),dtype=np.uint8)
+    noise_texture = nprand.normal(loc=0,scale=range,size=imgbytes.shape)
+    noised = imgbytes + noise_texture
+    noised = np.clip(noised,min=0,max=255)
+    noised = np.astype(noised,np.uint8)
+    noised = np.reshape(
+        noised,
+        shape=(
+            img.width,
+            img.height,
+            len(imgbytes)//(img.width*img.height) # bitdepth
+        )
+    )
+    return fromarray(noised)
+
 def noise_rotate_test_image(image:Image,rot_deg:float) -> tuple[Image,int]:
     # i_over = i_over.rotate(90)
     # for barcode in scan_for_barcodes(i_over):
@@ -72,7 +98,9 @@ def noise_rotate_test_image(image:Image,rot_deg:float) -> tuple[Image,int]:
     #     print(f"    Position:     {barcode.position}")
     #     print(f"    Orientation:  {barcode.orientation}")
     
-    i_noise = add_gausian_noise(image)
+    # i_noise = add_gausian_noise(image)
+    # i_noise = add_gausian_noise_builtin(image)
+    i_noise = add_gausian_noise_numpy(image)
     i_rot = i_noise.rotate(rot_deg)
     
     start = time.perf_counter()
