@@ -130,19 +130,42 @@ def save_images_to_gif(filename:str,images:list[Image]):
     print(f"Finished saving {filename}")
 
 def pillow_to_pixmap(img:Image) -> QPixmap:
-    img = img.convert("RGB")
-    imgdata = bytearray()
-    for r,g,b in img.getdata():
-        imgdata.append(r)
-        imgdata.append(g)
-        imgdata.append(b)
-    qimage = QImage(
-        imgdata,
-        img.width,
-        img.height,
-        img.width*3,
-        QImage.Format.Format_RGB888
-    )
+    imgdata = img.tobytes()
+    match img.mode:
+        case "RGB":
+            qimage = QImage(
+                imgdata,
+                img.width,
+                img.height,
+                img.width*3,
+                QImage.Format.Format_RGB888
+            )
+        case "RGBA":
+            qimage = QImage(
+                imgdata,
+                img.width,
+                img.height,
+                img.width*3,
+                QImage.Format.Format_RGBA8888
+            )
+        case "L":
+            qimage = QImage(
+                imgdata,
+                img.width,
+                img.height,
+                img.width*3,
+                QImage.Format.Format_Grayscale8
+            )
+        case  _:
+            print("Unknown image format {}, converting to RGB as a fallback".format(img.mode))
+            img = img.convert("RGB")
+            qimage = QImage(
+                imgdata,
+                img.width,
+                img.height,
+                img.width*3,
+                QImage.Format.Format_RGB888
+            )
     return QPixmap(qimage)
 
 app = QApplication()
@@ -198,8 +221,8 @@ t2 = Thread(
 # t1.start()
 # t2.start()
 print("Scan Times")
-print(f"  datamatrix  {min(times_to_scan[:360])*1000:.3f} - {max(times_to_scan[:360])*1000:.3f}")
-print(f"  qrcode      {min(times_to_scan[360:])*1000:.3f} - {max(times_to_scan[360:])*1000:.3f}")
+print(f"  datamatrix  {min(times_to_scan[:360])*1000:.3f} ms - {max(times_to_scan[:360])*1000:.3f} ms")
+print(f"  qrcode      {min(times_to_scan[360:])*1000:.3f} ms - {max(times_to_scan[360:])*1000:.3f} ms")
 app.exec()
 app.shutdown()
 # t1.join()
