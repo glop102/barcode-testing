@@ -14,6 +14,7 @@ opens the device /dev/video0 and scans for barcodes. The first one it finds in a
 
 ## Requirements:
 * pillow
+* av (for the webcam)
 * pyside6 (for the GUI)
 * treepoem (for generating parcodes)
 * zxingcpp (for parsing barcodes)
