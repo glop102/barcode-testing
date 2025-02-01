@@ -120,6 +120,8 @@ class ZXingCppDisplay(QWidget):
         self._barcode_type = QLabel()
         self._barcode_duration = QLabel()
         self._barcode_text = QLabel()
+        self._barcode_data = QLabel()
+        self._barcode_textdata_combo = QLabel()
         self._barcode_position = QLabel()
         self._barcode_orientation = QLabel()
         self._barcode_image = PillowDisplay()
@@ -128,9 +130,17 @@ class ZXingCppDisplay(QWidget):
         l.addWidget(self._barcode_type)
         l.addWidget(self._barcode_duration)
         l.addWidget(self._barcode_text)
+        l.addWidget(self._barcode_data)
+        l.addWidget(self._barcode_textdata_combo)
         l.addWidget(self._barcode_position)
         l.addWidget(self._barcode_orientation)
         l.addWidget(self._barcode_image)
+
+        for w in [self._barcode_data,self._barcode_text,self._barcode_textdata_combo]:
+            w.setWordWrap(True)
+            flags = w.textInteractionFlags()
+            flags |= Qt.TextInteractionFlag.TextSelectableByMouse
+            w.setTextInteractionFlags(flags)
 
         self._parser = ZXingCppParser()
         self._parser.foundBarcodeResults.connect(self.displayResults)
@@ -142,6 +152,12 @@ class ZXingCppDisplay(QWidget):
             return
         self._barcode_type.setText(str(results[0].format))
         self._barcode_text.setText(results[0].text)
+        self._barcode_data.setText(" ".join(["{:02X}".format(x) for x in results[0].bytes]))
+        # Space is the lowest printable ascii at 32 and ~ is the highest at 126 (DEL is 127)
+        comboconvert = lambda x: "({:02X})".format(x) if x>126 or x<32 else chr(x)
+        self._barcode_textdata_combo.setText("".join(
+                [comboconvert(x) for x in results[0].bytes]
+            ))
         self._barcode_position.setText(str(results[0].position))
         self._barcode_orientation.setText(str(results[0].orientation))
         position = results[0].position
